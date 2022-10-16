@@ -56,7 +56,7 @@ func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
 	return en.State, nil
 }
 
-func (en *Engine) ListenState(ctx *context.Context) (chan State, error) {
+func (en *Engine) ListenState(ctx context.Context) (chan State, error) {
 	if len(en.State) == 0 {
 		return nil, errors.New("ListenState called on empty state")
 	}
@@ -65,10 +65,15 @@ func (en *Engine) ListenState(ctx *context.Context) (chan State, error) {
 	en.isChanelOpen = true
 
 	go func() {
-		ticker := time.NewTicker(time.Duration(en.Config.TicksPerSecond) * time.Second)
+		ticker := time.NewTicker(time.Duration(1 / float64(en.Config.TicksPerSecond) * float64(time.Second)))
 		for range ticker.C {
-			en.doTick()
-			out <- en.State
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				en.doTick()
+				out <- en.State
+			}
 		}
 	}()
 
@@ -82,11 +87,13 @@ func (en *Engine) doTick() {
 
 	var countLiveNeighbours = func(state State, row int, col int) int {
 		alive := 0
-		for i := row - 1; i < row+1; i++ {
-			for j := col - 1; j < col+1; j++ {
+		for i := row - 1; i <= row+1; i++ {
+			for j := col - 1; j <= col+1; j++ {
 				var x int
 				var y int
-
+				if i == row && j == col {
+					continue
+				}
 				if i < 0 {
 					x = len(state) - 1
 				} else if i >= len(state) {
