@@ -1,4 +1,9 @@
 # game-of-life-go
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/easy-death/game-of-life-go.svg)](https://pkg.go.dev/github.com/easy-death/game-of-life-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/easy-death/game-of-life-go)](https://goreportcard.com/report/github.com/easy-death/game-of-life-go)
+[![Release](https://img.shields.io/github/v/release/easy-death/game-of-life-go.svg)](https://github.com/easy-death/game-of-life-go/releases/latest)
+
 Go implementation of Conway's Game of Life. Possible to use as library or cli.
 ## Installation
 Get latest version
