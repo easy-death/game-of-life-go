@@ -14,9 +14,10 @@ type State [][]bool
 
 type Engine struct {
 	Config       Config
-	State        [][]bool
+	state        State
 	isChanelOpen bool
 	lifeIsDead   bool
+	outChannel   chan State
 }
 
 func NewEngine() *Engine {
@@ -24,15 +25,16 @@ func NewEngine() *Engine {
 		Config: Config{
 			TicksPerSecond: 10,
 		},
-		State: [][]bool{},
+		state:      [][]bool{},
+		outChannel: make(chan State),
 	}
 }
 
 func (en *Engine) SetInitialState(state State) error {
-	if len(en.State) > 0 {
+	if len(en.state) > 0 {
 		return errors.New("state changing not allowed")
 	}
-	en.State = state
+	en.state = state
 
 	return nil
 }
@@ -45,7 +47,7 @@ func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
 	if en.isChanelOpen {
 		return nil, errors.New("can't change state when channel opened")
 	}
-	if len(en.State) == 0 {
+	if len(en.state) == 0 {
 		return nil, errors.New("GetStateAfterTicks called on empty state")
 	}
 	var i uint
@@ -53,16 +55,13 @@ func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
 		en.doTick()
 	}
 
-	return en.State, nil
+	return en.state, nil
 }
 
 func (en *Engine) ListenState(ctx context.Context) (chan State, error) {
-	if len(en.State) == 0 {
+	if len(en.state) == 0 {
 		return nil, errors.New("ListenState called on empty state")
 	}
-
-	out := make(chan State)
-	en.isChanelOpen = true
 
 	go func() {
 		ticker := time.NewTicker(time.Duration(1 / float64(en.Config.TicksPerSecond) * float64(time.Second)))
@@ -72,12 +71,12 @@ func (en *Engine) ListenState(ctx context.Context) (chan State, error) {
 				return
 			default:
 				en.doTick()
-				out <- en.State
+				en.outChannel <- en.state
 			}
 		}
 	}()
 
-	return out, nil
+	return en.outChannel, nil
 }
 
 func (en *Engine) doTick() {
@@ -120,18 +119,18 @@ func (en *Engine) doTick() {
 	}
 	totalAliveCells := 0
 
-	for i := 0; i < len(en.State); i++ {
-		for j := 0; j < len(en.State[i]); j++ {
-			aliveNeighbours := countLiveNeighbours(en.State, i, j)
-			if en.State[i][j] {
+	for i := 0; i < len(en.state); i++ {
+		for j := 0; j < len(en.state[i]); j++ {
+			aliveNeighbours := countLiveNeighbours(en.state, i, j)
+			if en.state[i][j] {
 				totalAliveCells++
 
 				if aliveNeighbours < 2 || aliveNeighbours > 3 {
-					en.State[i][j] = false
+					en.state[i][j] = false
 				}
 			} else {
 				if aliveNeighbours == 3 {
-					en.State[i][j] = true
+					en.state[i][j] = true
 				}
 			}
 		}

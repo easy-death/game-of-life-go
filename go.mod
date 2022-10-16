@@ -1,4 +1,4 @@
-module gameoflife
+module github.com/easy-death/game-of-life-go
 
 go 1.18
 

@@ -45,7 +45,7 @@ func haveFun(_ *cobra.Command, _ []string) {
 	}
 
 	engine := gameoflife.NewEngine()
-	engine.State = state
+	engine.SetInitialState(state)
 	engine.Config.TicksPerSecond = 15
 	ctx := context.Background()
 	channel, _ := engine.ListenState(ctx)
