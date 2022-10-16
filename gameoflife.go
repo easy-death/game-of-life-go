@@ -1,3 +1,5 @@
+// Package implements Conway's Game of life with possibility to travel
+// into specific state or listen to changes
 package gameoflife
 
 import (
@@ -7,10 +9,13 @@ import (
 )
 
 type Config struct {
+	// TicksPerSecond considered by GetStateAfterSeconds and ListenState
 	TicksPerSecond uint8
 }
 
 type State []StateRow
+
+// Array of bools represent dead and alive cells
 type StateRow []bool
 
 type Engine struct {
@@ -20,6 +25,7 @@ type Engine struct {
 	listeners  map[context.Context]chan State
 }
 
+// Get new object with it's own state and listeners
 func NewEngine() *Engine {
 	return &Engine{
 		Config: Config{
@@ -29,6 +35,7 @@ func NewEngine() *Engine {
 	}
 }
 
+// The only ways to set state, changing not allowed
 func (en *Engine) SetInitialState(state State) error {
 	if len(en.state) > 0 {
 		return errors.New("state changing not allowed")
@@ -38,10 +45,16 @@ func (en *Engine) SetInitialState(state State) error {
 	return nil
 }
 
+// Calculates future state of life based on Config.TicksPerSecond
+// Not allowed to call with listeners connected
+// Throwns error when called on empty state
 func (en *Engine) GetStateAfterSeconds(seconds uint) (State, error) {
 	return en.GetStateAfterTicks(seconds * uint(en.Config.TicksPerSecond))
 }
 
+// Calculates future state of life
+// Not allowed to call with listeners connected
+// Throwns error when called on empty state
 func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
 	if len(en.listeners) > 0 {
 		return nil, errors.New("can't change state with active listeners")
@@ -57,6 +70,8 @@ func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
 	return en.state, nil
 }
 
+// Returns a channel for state updates, frequency based on Config.TicksPerSecond
+// Throwns error when called on empty state
 func (en *Engine) ListenState(ctx context.Context) (chan State, error) {
 	if len(en.state) == 0 {
 		return nil, errors.New("ListenState called on empty state")
