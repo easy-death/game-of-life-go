@@ -10,14 +10,14 @@ type Config struct {
 	TicksPerSecond uint8
 }
 
-type State [][]bool
+type State []StateRow
+type StateRow []bool
 
 type Engine struct {
-	Config       Config
-	state        State
-	isChanelOpen bool
-	lifeIsDead   bool
-	outChannel   chan State
+	Config     Config
+	state      State
+	lifeIsDead bool
+	listeners  map[context.Context]chan State
 }
 
 func NewEngine() *Engine {
@@ -25,8 +25,7 @@ func NewEngine() *Engine {
 		Config: Config{
 			TicksPerSecond: 10,
 		},
-		state:      [][]bool{},
-		outChannel: make(chan State),
+		listeners: make(map[context.Context]chan State),
 	}
 }
 
@@ -44,8 +43,8 @@ func (en *Engine) GetStateAfterSeconds(seconds uint) (State, error) {
 }
 
 func (en *Engine) GetStateAfterTicks(ticks uint) (State, error) {
-	if en.isChanelOpen {
-		return nil, errors.New("can't change state when channel opened")
+	if len(en.listeners) > 0 {
+		return nil, errors.New("can't change state with active listeners")
 	}
 	if len(en.state) == 0 {
 		return nil, errors.New("GetStateAfterTicks called on empty state")
@@ -62,21 +61,30 @@ func (en *Engine) ListenState(ctx context.Context) (chan State, error) {
 	if len(en.state) == 0 {
 		return nil, errors.New("ListenState called on empty state")
 	}
-
-	go func() {
-		ticker := time.NewTicker(time.Duration(1 / float64(en.Config.TicksPerSecond) * float64(time.Second)))
-		for range ticker.C {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				en.doTick()
-				en.outChannel <- en.state
+	if len(en.listeners) == 0 {
+		go func() {
+			ticker := time.NewTicker(time.Duration(1 / float64(en.Config.TicksPerSecond) * float64(time.Second)))
+			for range ticker.C {
+				select {
+				case <-ctx.Done():
+					close(en.listeners[ctx])
+					delete(en.listeners, ctx)
+				default:
+					en.doTick()
+					if len(en.listeners) == 0 {
+						return
+					}
+					for _, ch := range en.listeners {
+						ch <- en.state
+					}
+				}
 			}
-		}
-	}()
+		}()
+	}
+	out := make(chan State)
+	en.listeners[ctx] = out
 
-	return en.outChannel, nil
+	return out, nil
 }
 
 func (en *Engine) doTick() {
@@ -118,6 +126,8 @@ func (en *Engine) doTick() {
 		return alive
 	}
 	totalAliveCells := 0
+	nextState := make(State, len(en.state))
+	copyState(&nextState, en.state)
 
 	for i := 0; i < len(en.state); i++ {
 		for j := 0; j < len(en.state[i]); j++ {
@@ -126,17 +136,27 @@ func (en *Engine) doTick() {
 				totalAliveCells++
 
 				if aliveNeighbours < 2 || aliveNeighbours > 3 {
-					en.state[i][j] = false
+					nextState[i][j] = false
 				}
 			} else {
 				if aliveNeighbours == 3 {
-					en.state[i][j] = true
+					nextState[i][j] = true
 				}
 			}
 		}
 	}
+	en.state = nextState
 
 	if totalAliveCells < 3 {
 		en.lifeIsDead = true
+	}
+}
+
+func copyState(dest *State, src State) {
+	for i, row := range src {
+		(*dest)[i] = make(StateRow, len(row))
+		for j, cell := range row {
+			(*dest)[i][j] = cell
+		}
 	}
 }

@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"gameoflife"
 	"math/rand"
 	"time"
 
+	gameoflife "github.com/easy-death/game-of-life-go"
 	"github.com/spf13/cobra"
 )
 
@@ -35,10 +35,10 @@ func haveFun(_ *cobra.Command, _ []string) {
 			return " "
 		}
 	}
-	state := make([][]bool, rows)
+	state := make(gameoflife.State, rows)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < int(rows); i++ {
-		state[i] = make([]bool, cols)
+		state[i] = make(gameoflife.StateRow, cols)
 		for j := 0; j < int(cols); j++ {
 			state[i][j] = r.Intn(10) == 0
 		}
