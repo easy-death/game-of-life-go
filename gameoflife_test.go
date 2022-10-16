@@ -117,6 +117,30 @@ func TestChangeWithListeners(t *testing.T) {
 	}
 }
 
+func TestBlinker(t *testing.T) {
+	en := NewEngine()
+	en.SetInitialState(State{
+		StateRow{false, false, false, false, false},
+		StateRow{false, false, false, false, false},
+		StateRow{false, true, true, true, false},
+		StateRow{false, false, false, false, false},
+		StateRow{false, false, false, false, false},
+	})
+	expectedState := State{
+		StateRow{false, false, false, false, false},
+		StateRow{false, false, true, false, false},
+		StateRow{false, false, true, false, false},
+		StateRow{false, false, true, false, false},
+		StateRow{false, false, false, false, false},
+	}
+
+	r, _ := en.GetStateAfterTicks(5)
+
+	if !compareStates(r, expectedState) {
+		t.Error("logic bug for common structure")
+	}
+}
+
 func compareStates(s1 State, s2 State) bool {
 	if len(s1) == len(s2) {
 		for i := 0; i < len(s1); i++ {
